@@ -7,7 +7,6 @@ import (
 )
 
 func TestMatch(t *testing.T) {
-	// TODO: add more tests
 	got, err := twyk.Match("https://github.com/joumanae/twyk", "joumanae")
 	if err != nil {
 		t.Error(err)

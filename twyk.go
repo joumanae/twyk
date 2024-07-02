@@ -9,7 +9,7 @@ import (
 )
 
 func Match(url, keyword string) (bool, error) {
-	// upload the page from the url
+
 	fmt.Println("fetching", url)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -23,7 +23,7 @@ func Match(url, keyword string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("error: %s", err)
 	}
-	// see if there is a match of the keyword on that page
+
 	sr := string(b)
 	if strings.Contains(sr, keyword) {
 		return true, nil
