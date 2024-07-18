@@ -4,22 +4,27 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
 	"os"
 	"strings"
 )
 
-func Match(url, keyword string) (bool, error) {
+// isValidURL checks if a URL is valid and properly formatted
 
-	fmt.Println("fetching", url)
-	resp, err := http.Get(url)
+func Match(urlString, keyword string, c *http.Client) (bool, error) {
+
+	resp, err := c.Get(urlString)
+	if resp.StatusCode != 200 {
+		return false, fmt.Errorf("page not found")
+
+	}
 	if err != nil {
-		return false, fmt.Errorf("error: %s", err)
+		return false, fmt.Errorf("an error occured %s", err)
 	}
 
 	defer resp.Body.Close()
 
 	b, err := io.ReadAll(resp.Body)
-
 	if err != nil {
 		return false, fmt.Errorf("error: %s", err)
 	}
@@ -40,11 +45,7 @@ func Main() int {
 		os.Exit(1)
 	}
 
-	match, err := Match(args[0], args[1])
-	if err != nil {
-		fmt.Println("Error matching keyword:", err)
-		os.Exit(1)
-	}
+	match, err := Match(args[0], args[1], http.DefaultClient)
 	if err != nil {
 		fmt.Println("Error parsing URL:", err)
 		os.Exit(1)
@@ -55,5 +56,6 @@ func Main() int {
 	} else {
 		fmt.Println("no match")
 	}
+
 	return 0
 }
