@@ -1,0 +1,3 @@
+https://bitfieldconsulting.com rust
+https://example.com/ bogus
+https://google.com google

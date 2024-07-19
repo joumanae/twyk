@@ -36,3 +36,8 @@ func TestMatchReturnsErrorForNotFoundUrl(t *testing.T) {
 		t.Error("no error")
 	}
 }
+
+func TestCheckURLsFromFile_(t *testing.T) {
+	t.Parallel()
+	
+}

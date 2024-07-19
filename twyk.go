@@ -1,21 +1,40 @@
 package twyk
 
 import (
+	"bufio"
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type Matcher struct {
+	Out        io.Writer
 	HTTPClient *http.Client
 }
 
 func NewMatcher() *Matcher {
 	return &Matcher{
+		Out:        os.Stdout,
 		HTTPClient: http.DefaultClient,
 	}
+}
+
+func (m *Matcher) PrintMatch(uri, keyword string) error {
+	matched, err := m.Match(uri, keyword)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(m.Out, "%s: ", keyword)
+	if matched {
+		fmt.Fprintln(m.Out, "match")
+	} else {
+		fmt.Fprintln(m.Out, "no match")
+	}
+	return nil
 }
 
 func (m *Matcher) Match(uri, keyword string) (bool, error) {
@@ -33,37 +52,59 @@ func (m *Matcher) Match(uri, keyword string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-
-	if bytes.Contains(body, []byte(keyword)) {
-		return true, nil
-	}
-	return false, nil
+	return bytes.Contains(body, []byte(keyword)), nil
 }
 
-func Match(uri, keyword string) (bool, error) {
+func PrintMatch(uri, keyword string) error {
 	m := NewMatcher()
-	return m.Match(uri, keyword)
+	return m.PrintMatch(uri, keyword)
 }
 
 func Main() int {
-	args := os.Args[1:]
-	if len(args) < 2 {
-		fmt.Println("Usage: twyk <url> <keyword>")
-		os.Exit(0)
+	path := flag.String("f", "", "path to file of URLs and keywords")
+	flag.Parse()
+	if *path != "" {
+		err := CheckURLsFromFile(*path)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		return 0
 	}
-	uri, keyword := args[0], args[1]
-	matcher := NewMatcher()
-	match, err := matcher.Match(uri, keyword)
+	if flag.NArg() != 2 {
+		fmt.Println("Usage: twyk <url> <keyword>")
+		return 0
+	}
+	uri, keyword := flag.Args()[0], flag.Args()[1]
+	err := PrintMatch(uri, keyword)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
-	fmt.Printf("%s: ", keyword)
-	if match {
-		fmt.Println("match")
-	} else {
-		fmt.Println("no match")
-	}
-
 	return 0
+}
+
+func CheckURLsFromFile(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	input := bufio.NewScanner(f)
+	for input.Scan() {
+		res := strings.Split(input.Text(), " ")
+		if len(res) != 2 {
+			continue
+		}
+		uri, keyword := res[0], res[1]
+		err := PrintMatch(uri, keyword)
+		if err != nil {
+			return err
+		}
+	}
+	err = input.Err()
+	if err != nil {
+		return err
+	}
+	return nil
 }
