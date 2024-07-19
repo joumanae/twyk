@@ -1,6 +1,7 @@
 package twyk_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -8,31 +9,30 @@ import (
 	"github.com/joumanae/twyk"
 )
 
-func TestMatch(t *testing.T) {
-	got, err := twyk.Match("https://github.com/joumanae/twyk", "joumanae", http.DefaultClient)
+func TestMatchReturnsTrueWhenKeywordIsMatched(t *testing.T) {
+	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "hello from the test handler!")
+	}))
+	m := twyk.NewMatcher()
+	m.HTTPClient = s.Client()
+	matched, err := m.Match(s.URL, "hello")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	want := true
-	if got != want {
-		t.Errorf("got %t, want %t", got, want)
+	if !matched {
+		t.Errorf("expected to match %q, but did not", "hello")
 	}
 }
 
-func TestMatchReturnsErrorForInvalidUrl(t *testing.T) {
-	s := httptest.NewTLSServer(nil)
+func TestMatchReturnsErrorForNotFoundUrl(t *testing.T) {
+	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
 	defer s.Close()
-	c := s.Client()
-	r, err := c.Get(s.URL)
-	if err != nil {
-		t.Error(err)
-	}
-	if r.StatusCode != 404 {
-		t.Errorf("wrong status code: %d", r.StatusCode)
-	}
-	_, err = twyk.Match(s.URL, "joumanae", c)
+	m := twyk.NewMatcher()
+	m.HTTPClient = s.Client()
+	_, err := m.Match(s.URL, "joumanae")
 	if err == nil {
-		t.Errorf("failed")
+		t.Error("no error")
 	}
-	r.Body.Close()
 }

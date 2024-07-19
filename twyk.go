@@ -1,56 +1,64 @@
 package twyk
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
-
 	"os"
-	"strings"
 )
 
-// isValidURL checks if a URL is valid and properly formatted
+type Matcher struct {
+	HTTPClient *http.Client
+}
 
-func Match(urlString, keyword string, c *http.Client) (bool, error) {
-
-	resp, err := c.Get(urlString)
-	if resp.StatusCode != 200 {
-		return false, fmt.Errorf("page not found")
-
+func NewMatcher() *Matcher {
+	return &Matcher{
+		HTTPClient: http.DefaultClient,
 	}
+}
+
+func (m *Matcher) Match(uri, keyword string) (bool, error) {
+	resp, err := m.HTTPClient.Get(uri)
 	if err != nil {
-		return false, fmt.Errorf("an error occured %s", err)
+		return false, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("page not found: %s", uri)
 	}
 
 	defer resp.Body.Close()
 
-	b, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return false, fmt.Errorf("error: %s", err)
+		return false, err
 	}
 
-	sr := string(b)
-	if strings.Contains(sr, keyword) {
+	if bytes.Contains(body, []byte(keyword)) {
 		return true, nil
 	}
 	return false, nil
 }
 
-func Main() int {
+func Match(uri, keyword string) (bool, error) {
+	m := NewMatcher()
+	return m.Match(uri, keyword)
+}
 
+func Main() int {
 	args := os.Args[1:]
-	fmt.Println(args)
 	if len(args) < 2 {
 		fmt.Println("Usage: twyk <url> <keyword>")
-		os.Exit(1)
+		os.Exit(0)
 	}
-
-	match, err := Match(args[0], args[1], http.DefaultClient)
+	uri, keyword := args[0], args[1]
+	matcher := NewMatcher()
+	match, err := matcher.Match(uri, keyword)
 	if err != nil {
-		fmt.Println("Error parsing URL:", err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-
+	fmt.Printf("%s: ", keyword)
 	if match {
 		fmt.Println("match")
 	} else {
